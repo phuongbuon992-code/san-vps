@@ -30,8 +30,10 @@ jobs:
           echo "tenancy=${{ secrets.OCI_TENANCY_OCID }}" >> ~/.oci/config
           echo "region=${{ secrets.OCI_REGION }}" >> ~/.oci/config
           echo "${{ secrets.OCI_PRIVATE_KEY }}" > ~/.oci/private_key.pem
+          echo "${{ secrets.OCI_SSH_PUBLIC_KEY }}" > ~/.oci/ssh_key.pub
           echo "key_file=~/.oci/private_key.pem" >> ~/.oci/config
           chmod 600 ~/.oci/private_key.pem
+          chmod 600 ~/.oci/ssh_key.pub
 
       - name: Hunt Ampere A1 Instance (4 OCPU / 24GB RAM)
         run: |
@@ -56,4 +58,4 @@ jobs:
             --image-id "$IMAGE_ID" \
             --subnet-id "$SUBNET_ID" \
             --display-name "san-vps-ampere" \
-            --ssh-authorized-keys "${{ secrets.OCI_SSH_PUBLIC_KEY }}"
+            --ssh-authorized-keys-file ~/.oci/ssh_key.pub
