@@ -1,0 +1,59 @@
+name: OCI Ampere VPS Hunter
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+jobs:
+  hunt-vps:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install OCI CLI
+        run: |
+          pip install oci-cli
+
+      - name: Create OCI Config
+        run: |
+          mkdir -p ~/.oci
+          echo "[DEFAULT]" > ~/.oci/config
+          echo "user=${{ secrets.OCI_USER_OCID }}" >> ~/.oci/config
+          echo "fingerprint=${{ secrets.OCI_FINGERPRINT }}" >> ~/.oci/config
+          echo "tenancy=${{ secrets.OCI_TENANCY_OCID }}" >> ~/.oci/config
+          echo "region=${{ secrets.OCI_REGION }}" >> ~/.oci/config
+          echo "${{ secrets.OCI_PRIVATE_KEY }}" > ~/.oci/private_key.pem
+          echo "key_file=~/.oci/private_key.pem" >> ~/.oci/config
+          chmod 600 ~/.oci/private_key.pem
+
+      - name: Hunt Ampere A1 Instance (4 OCPU / 24GB RAM)
+        run: |
+          echo "Đang tìm kiếm Image Ubuntu ARM phù hợp..."
+          IMAGE_ID=$(oci compute image list --compartment-id ${{ secrets.OCI_TENANCY_OCID }} --operating-system "Canonical Ubuntu" --operating-system-version "22.04" --shape VM.Standard.A1.Flex --sort-by TIMECREATED --sort-order DESC --query "data[0].id" --raw-output)
+          echo "Image ID: $IMAGE_ID"
+
+          echo "Đang tìm kiếm Subnet khả dụng..."
+          SUBNET_ID=$(oci network subnet list --compartment-id ${{ secrets.OCI_TENANCY_OCID }} --lifecycle-state AVAILABLE --query "data[0].id" --raw-output)
+          echo "Subnet ID: $SUBNET_ID"
+
+          echo "Đang lấy Availability Domain..."
+          AD_NAME=$(oci iam availability-domain list --compartment-id ${{ secrets.OCI_TENANCY_OCID }} --query 'data[0].name' --raw-output)
+          echo "AD: $AD_NAME"
+
+          echo "Bắt đầu gửi yêu cầu săn VPS 4 OCPU / 24GB RAM..."
+          oci compute instance launch \
+            --compartment-id ${{ secrets.OCI_TENANCY_OCID }} \
+            --availability-domain "$AD_NAME" \
+            --shape "VM.Standard.A1.Flex" \
+            --shape-config '{"ocpus": 4, "memoryInGBs": 24}' \
+            --image-id "$IMAGE_ID" \
+            --subnet-id "$SUBNET_ID" \
+            --display-name "san-vps-ampere" \
+            --ssh-authorized-keys "${{ secrets.OCI_SSH_PUBLIC_KEY }}"
