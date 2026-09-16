@@ -3,7 +3,7 @@ name: OCI Ampere VPS Hunter
 on:
   workflow_dispatch:
   schedule:
-    - cron: '*/30 * * * *'
+    - cron: '0 */5 * * *' # Cứ mỗi 5 tiếng GitHub gọi mồi chạy lại 1 lần để duy trì xích
 
 jobs:
   hunt-vps:
@@ -29,6 +29,6 @@ jobs:
           chmod 600 ~/.oci/private_key.pem
           chmod 600 ~/.oci/config
 
-      - name: Hunt OCI Ampere VPS
+      - name: Run Python Hunter Loop
         run: |
           python3 -u hunt.py
